@@ -113,4 +113,59 @@ def hippynn_calculator_task(molecule_object,QM_config,QM_scratch_dir,properties_
 
     return molecule_object
     
+from rootstock import RootstockCalculator
+
+@python_app(executors=['alf_QM_executor'])
+def Rootstock_calculator_task(molecule_object,QM_config,QM_scratch_dir,properties_list):
+
+    assert isinstance(molecule_object, MoleculesObject), 'molecule_object must be an instance of MoleculesObject'
+
+    directory = QM_scratch_dir + '/' + molecule_object.get_moleculeid()
+    properties = list(properties_list.keys())
+    atoms = molecule_object.get_atoms()
+    mol = atoms.copy()
+    
+    if os.path.isdir(directory):
+        raise RuntimeError('Scratch directory exists: ' + directory)
+    else:
+       os.makedirs(directory)
+    
+    checkpoint = QM_config["checkpoint"] 
+    setup_kwargs = QM_config["setup_kwargs"]
+
+    calc_start_time = time.time()
+
+    calculator = RootstockCalculator(cluster="frontier",checkpoint=checkpoint,setup_kwargs=setup_kwargs)
+    mol.calc = calculator
+    energy = mol.get_potential_energy()
+    forces = mol.get_forces()
+
+    calc_end_time = time.time()
+    calc_time = calc_end_time - calc_start_time
+    
+    free_energy = energy
+    return_results = {}
+    return_results['energy'] = energy
+    return_results['free_energy'] = free_energy
+    return_results['forces'] = forces
+
+    file = open(directory+'/output.txt','w')
+    file.write("Cell (A)"+'\n')
+    file.write(str(atoms.get_cell())+'\n')
+    file.write("Elements: "+'\n')
+    file.write(str(atoms.get_chemical_formula())+'\n')
+    file.write("Coordinates (A)"+'\n')
+    file.write(str(atoms.get_positions())+'\n')
+    file.write('Energy (eV): '+str(energy)+'\n')
+    file.write("Forces (eV/A): "+"\n")
+    file.write(str(forces)+'\n')
+    file.write('Converged'+'\n')
+    file.write("Run time (s): "+str(calc_time))
+    file.close()
+    
+    molecule_object.store_results(return_results)
+    molecule_object.set_converged_flag(True)
+
+    return molecule_object
+    
 
