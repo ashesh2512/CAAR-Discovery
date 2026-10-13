@@ -191,11 +191,18 @@ def main() -> None:
         default=2,
         help="Minimum number of elements in a system.",
     )
-    parser.add_argument(
+    element_count_group = parser.add_mutually_exclusive_group()
+    element_count_group.add_argument(
         "--max-elements",
         type=int,
         default=None,
         help="Maximum number of elements in a system. Defaults to all configured elements.",
+    )
+    element_count_group.add_argument(
+        "--num-elements",
+        type=int,
+        default=None,
+        help="Create only systems with exactly this number of elements.",
     )
     parser.add_argument(
         "--cations",
@@ -284,7 +291,10 @@ def main() -> None:
 
     cations = parse_symbols(args.cations)
     anions = parse_symbols(args.anions)
-    if args.max_elements is None:
+    if args.num_elements is not None:
+        args.min_elements = args.num_elements
+        args.max_elements = args.num_elements
+    elif args.max_elements is None:
         args.max_elements = len(cations) + len(anions)
 
     if args.min_elements < 2:
