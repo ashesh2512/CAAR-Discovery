@@ -1,0 +1,6 @@
+{   
+    "atom_charges":{},
+    "target_num_atoms":200,
+    "min_distance":1.5,
+    "density_range":[1.5, 3.5]
+}
