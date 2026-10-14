@@ -26,6 +26,8 @@ DEFAULT_CATIONS = [
     "Ca",
     "Sr",
     "Ba",
+    "Zn",
+    "Zr",
 ]
 
 DEFAULT_ANIONS = ["F", "Cl"]
@@ -41,6 +43,8 @@ DEFAULT_CHARGES = {
     "Ca": 2,
     "Sr": 2,
     "Ba": 2,
+    "Zn": 2,
+    "Zr": 4,
     "F": -1,
     "Cl": -1,
 }
@@ -54,7 +58,9 @@ ATOMIC_NUMBERS = {
     "Cl": 17,
     "K": 19,
     "Ca": 20,
+    "Zn": 30,
     "Rb": 37,
+    "Zr": 40,
     "Sr": 38,
     "Cs": 55,
     "Ba": 56,
