@@ -288,12 +288,20 @@ def main() -> None:
         help="Print counts and example folder names without creating folders.",
     )
     parser.add_argument(
+        "--max-systems",
         "--limit",
+        dest="limit",
         type=int,
         default=None,
-        help="Optional maximum number of systems to create or show.",
+        help=(
+            "Maximum number of systems to create or show. Systems are taken in "
+            "ascending order of element count. --limit is an alias."
+        ),
     )
     args = parser.parse_args()
+
+    if args.limit is not None and args.limit < 1:
+        parser.error("--max-systems must be a positive integer.")
 
     cations = parse_symbols(args.cations)
     anions = parse_symbols(args.anions)
