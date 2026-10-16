@@ -26,13 +26,13 @@ config_standard = Config(
 
 
                 # string to prepend to #SBATCH blocks in the submit
-                scheduler_options='#SBATCH --nodes=10 --ntasks-per-node=8 -p batch -J QM -A  csc728',
+                scheduler_options='#SBATCH --nodes=1 --ntasks-per-node=8 -p batch -J QM -A  csc728',
 
                 # Command to be run before starting a worker
                 #worker_init=
 
                 # We request all hyperthreads on a node.
-                launcher=SrunLauncher(overrides='--ntasks 80 -c 7 --gpus-per-task=1 --gpu-bind=closest'),
+                launcher=SrunLauncher(overrides='--ntasks 8 -c 7 --gpus-per-task=1 --gpu-bind=closest'),
 
                 walltime='0:10:00',
 
@@ -77,13 +77,13 @@ config_standard = Config(
                 max_blocks = 1,
 
                 # string to prepend to #SBATCH blocks in the submit
-                scheduler_options='#SBATCH --nodes 10 --ntasks-per-node=8 -p batch -J MD -A csc728',
+                scheduler_options='#SBATCH --nodes 1 --ntasks-per-node=8 -p batch -J MD -A csc728',
 
                 # Command to be run before starting a worker
                 #worker_init=
 
                 # We request all hyperthreads on a node.
-                launcher=SrunLauncher(overrides='--ntasks 80 -c 7 --gpus-per-task=1 --gpu-bind=closest'),
+                launcher=SrunLauncher(overrides='--ntasks 8 -c 7 --gpus-per-task=1 --gpu-bind=closest'),
                 walltime='0:10:00',
 
                 # Slurm scheduler on Cori can be slow at times,
