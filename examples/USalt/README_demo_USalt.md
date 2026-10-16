@@ -33,19 +33,19 @@ python -m alframework --master master_config.json --test_builder
 Run the molecular-dynamics (MD) sampler test:
 
 ```bash
-python -m alframework --master master_md.json --test_sampler
+python -m alframework --master master_config.json --test_sampler
 ```
 
 Run the quantum-mechanics (QM) teacher/labeling test:
 
 ```bash
-python -m alframework --master master_qm.json --test_qm
+python -m alframework --master master_config.json --test_qm
 ```
 
 Run the machine-learning (ML) training test:
 
 ```bash
-python -m alframework --master master_ml.json --test_ml
+python -m alframework --master master_config.json --test_ml
 ```
 
 ## Run production-level tests for MD, QM and ML - multiple tasks across a specified number of nodes (see master\_X.json files)
