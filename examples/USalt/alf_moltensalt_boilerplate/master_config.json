@@ -4,7 +4,7 @@
 	"model_path":"ensembles/ensemble-{:04d}",
 	"QM_task":"custom_teacher.Rootstock_calculator_task",
 	"QM_config_path":"teacher_config.json",
-	"ML_task":"alframework.ml_interfaces.hippynn_interface.train_HIPPYNN_ensemble_task",
+	"ML_task":"custom_training.train_HIPPYNN_ensemble_task",
 	"ML_config_path":"hippynn_config.json",
 	"builder_task":"custom_builders.atomic_system_task",
 	"builder_config_path":"builder_config.json",
