@@ -22,7 +22,7 @@ Change to the demo system directory:
 cd CAAR-Discovery/examples/USalt/demo_USalt/system_000001_n14_c-Li-Na-K-Rb-Cs-Be-Mg-Ca-Sr-Ba-Zn-Zr_a-F-Cl
 ```
 
-## Run the Tests
+## Run debug tests - single task on single node on single GPU with debug QOS
 
 Run the builder test:
 
@@ -30,39 +30,35 @@ Run the builder test:
 python -m alframework --master master_config.json --test_builder
 ```
 
-Run the molecular-dynamics (MD) test:
-
-```bash
-python -m alframework --master master_md.json
-```
-
-Optionally, add `--test_sampler` to test the sampler:
+Run the molecular-dynamics (MD) sampler test:
 
 ```bash
 python -m alframework --master master_md.json --test_sampler
 ```
 
-Run the quantum-mechanics (QM) test:
-
-```bash
-python -m alframework --master master_qm.json
-```
-
-Optionally, add `--test_qm` to test QM:
+Run the quantum-mechanics (QM) teacher/labeling test:
 
 ```bash
 python -m alframework --master master_qm.json --test_qm
 ```
 
-Run the machine-learning (ML) test:
-
-```bash
-python -m alframework --master master_ml.json
-```
-
-Optionally, add `--test_ml` to test ML:
+Run the machine-learning (ML) training test:
 
 ```bash
 python -m alframework --master master_ml.json --test_ml
+```
+
+## Run production-level tests for MD, QM and ML - multiple tasks across a specified number of nodes (see master\_X.json files)
+
+```bash
+python -m alframework --master master_md.json
+```
+
+```bash
+python -m alframework --master master_qm.json
+```
+
+```bash
+python -m alframework --master master_ml.json
 ```
 
