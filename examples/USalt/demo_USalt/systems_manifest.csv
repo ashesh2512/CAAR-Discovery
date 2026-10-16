@@ -1,0 +1,2 @@
+system_id,folder,total_elements,n_cations,n_anions,cations,anions,elements,charges,h5_path,hippynn_possible_species
+1,system_000001_n14_c-Li-Na-K-Rb-Cs-Be-Mg-Ca-Sr-Ba-Zn-Zr_a-F-Cl,14,12,2,Li Na K Rb Cs Be Mg Ca Sr Ba Zn Zr,F Cl,Li Na K Rb Cs Be Mg Ca Sr Ba Zn Zr F Cl,1 1 1 1 1 2 2 2 2 2 2 4 -1 -1,h5store/data-Li_Na_K_Rb_Cs_Be_Mg_Ca_Sr_Ba_Zn_Zr_F_Cl-{:04d}.h5,not_updated
