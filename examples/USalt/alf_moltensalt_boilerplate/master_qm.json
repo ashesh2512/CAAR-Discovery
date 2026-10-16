@@ -11,7 +11,7 @@
 	"sampler_task":"custom_sampling.simple_mlmd_sampling_task",
 	"sampler_config_path":"mlmd_config.json",
 	"properties_list": {"energy":["energy","system",1.0],"forces":["forces","atomic",1.0]},
-	"status_path":"status.txt",
+	"status_path":"status_qm.txt",
 	"target_queued_QM": 80, 
 	"minimum_QM": 79,
         "maximum_completed_QM":81,	
