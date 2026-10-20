@@ -13,18 +13,24 @@ from tools import run_parsl, load_molecules_from_h5, save_molecules_to_h5
 
 def main():
     # Load config
+    with open('master_config.json', 'r') as f:
+        master_config = json.load(f)
     with open('teacher_config.json', 'r') as f:
         qm_config = json.load(f)
 
     # Load molecules from the demo HDF5 store
     h5_src = 'h5store/data-Li_Na_K_Rb_Cs_Be_Mg_Ca_Sr_Ba_F_Cl-0000.h5'
+    h5_dst = 'labeled_molecules.h5'
+    if os.path.exists(h5_dst):
+        raise FileExistsError(f"refusing to overwrite existing {h5_dst}")
+
     print(f"Loading molecules from {h5_src}...")
     molecules = load_molecules_from_h5(h5_src)
     print(f"Loaded {len(molecules)} molecules.")
 
     # Parameters
-    qm_scratch_dir = 'qm_scratch'
-    properties_list = {'energy': 'energy', 'forces': 'forces'}
+    qm_scratch_dir = master_config.get("QM_scratch_dir", "qm_scratch")
+    properties_list = master_config["properties_list"]
 
     # Ensure scratch dir is clean for the demo
     if os.path.exists(qm_scratch_dir):
@@ -54,7 +60,6 @@ def main():
             sys.exit(1)
 
     # Save results back to HDF5
-    h5_dst = 'labeled_molecules.h5'
     print(f"Saving {len(labeled_molecules)} labeled molecules to {h5_dst}...")
     save_molecules_to_h5(h5_dst, labeled_molecules, properties_list)
     print("Done.")

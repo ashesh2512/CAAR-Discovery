@@ -1,7 +1,7 @@
 {
 "checkpoint":"uma-s-1p2",
 "use_ensemble":true,
-"ensemble_path":"ensembles",
+"ensemble_path":"ensembles/ensemble-0000/",
 "model_path":"models",
 "energy_name":"energy",
 "force_name":"forces",
