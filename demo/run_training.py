@@ -9,6 +9,7 @@ import os
 import sys
 from custom_training import train_HIPPYNN_ensemble_task
 from tools import run_parsl
+from pathlib import Path
 
 def main():
     with open('master_config.json', 'r') as f:
@@ -19,9 +20,9 @@ def main():
         ml_config = json.load(f)
 
     # Parameters
-    h5_dir = 'h5store' # Demo h5 store
+    h5_dir = Path('h5store').resolve() # Demo h5 store
     model_path = master_config["model_path"]
-    current_training_id = 0
+    current_training_id = 1
     gpus_per_node = 1
 
     # Ensure models directory exists
