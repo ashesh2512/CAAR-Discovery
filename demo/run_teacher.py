@@ -5,9 +5,10 @@
 
 import json
 import os
+import sys
 from ase import Atoms
 from alframework.tools.molecules_class import MoleculesObject
-from custom_teacher import hippynn_calculator_task
+from custom_teacher import hippynn_calculator_task, Rootstock_calculator_task
 from tools import run_parsl, load_molecules_from_h5, save_molecules_to_h5
 
 def main():
@@ -38,6 +39,7 @@ def main():
         print(f"Labeling molecule {i+1}/{len(molecules)}: {mol.get_moleculeid()}...")
         try:
             result = run_parsl(
+                #Rootstock_calculator_task,
                 hippynn_calculator_task,
                 molecule_object=mol,
                 QM_config=qm_config,
@@ -46,7 +48,10 @@ def main():
             )
             labeled_molecules.append(result)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"Failed to label {mol.get_moleculeid()}: {e}")
+            sys.exit(1)
 
     # Save results back to HDF5
     h5_dst = 'labeled_molecules.h5'

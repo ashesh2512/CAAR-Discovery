@@ -1,5 +1,10 @@
 {
 "checkpoint":"uma-s-1p2",
+"use_ensemble":true,
+"ensemble_path":"ensembles",
+"model_path":"models",
+"energy_name":"energy",
+"force_name":"forces",
 "setup_kwargs":{"task":"omat"}
 }
 

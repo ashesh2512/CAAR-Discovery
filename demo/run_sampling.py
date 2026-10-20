@@ -50,6 +50,7 @@ def main():
         import traceback
         traceback.print_exc()
         print(f"Sampling task failed: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

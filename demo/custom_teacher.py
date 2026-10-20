@@ -43,7 +43,6 @@ def hippynn_calculator_task(molecule_object,QM_config,QM_scratch_dir,properties_
     calc_start_time = time.time()
 
     if use_ensemble:
-
         ensemble_path = QM_config["ensemble_path"]
         energy_name = "ensemble_"+energy_name
         force_name = "ensemble_"+force_name
@@ -113,10 +112,7 @@ def hippynn_calculator_task(molecule_object,QM_config,QM_scratch_dir,properties_
 
     return molecule_object
     
-try:
-    from rootstock import RootstockCalculator
-except ImportError:
-    RootstockCalculator = None
+from rootstock import RootstockCalculator
 
 @python_app(executors=['alf_QM_executor'])
 def Rootstock_calculator_task(molecule_object,QM_config,QM_scratch_dir,properties_list):

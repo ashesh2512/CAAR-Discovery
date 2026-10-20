@@ -6,17 +6,21 @@
 
 import json
 import os
+import sys
 from custom_training import train_HIPPYNN_ensemble_task
 from tools import run_parsl
 
 def main():
+    with open('master_config.json', 'r') as f:
+        master_config = json.load(f)
+
     # Load config
     with open('hippynn_config.json', 'r') as f:
         ml_config = json.load(f)
 
     # Parameters
     h5_dir = 'h5store' # Demo h5 store
-    model_path = 'models/{}/'
+    model_path = master_config["model_path"]
     current_training_id = 0
     gpus_per_node = 1
 
@@ -39,7 +43,10 @@ def main():
         print(f"Result type: {type(result)}")
         print(f"Result: {repr(result)}")
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"Training task failed: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
