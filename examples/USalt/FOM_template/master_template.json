@@ -1,0 +1,38 @@
+{
+  "master_directory": "pwd",
+  "h5_path": "h5store/data-Li_Na_K_Rb_Cs_Be_Mg_Ca_Sr_Ba_Zn_Zr_F_Cl-{:04d}.h5",
+  "model_path": "ensembles/ensemble-{:04d}",
+  "QM_task": "custom_teacher.Rootstock_calculator_task",
+  "QM_config_path": "teacher_config.json",
+  "ML_task": "custom_training.train_HIPPYNN_ensemble_task",
+  "ML_config_path": "training_config.json",
+  "builder_task": "custom_builder.atomic_system_task",
+  "builder_config_path": "builder_config.json",
+  "sampler_task": "custom_sampler.simple_mlmd_sampling_task",
+  "sampler_config_path": "sampler_config.json",
+  "properties_list": {
+    "energy": [
+      "energy",
+      "system",
+      1.0
+    ],
+    "forces": [
+      "forces",
+      "atomic",
+      1.0
+    ]
+  },
+  "status_path": "status_FOM.txt",
+  "target_queued_QM": NCONFIGS,
+  "minimum_QM": NCONFIGS_MINUS_ONE,
+  "maximum_completed_QM": NCONFIGS,
+  "save_h5_threshold": NCONFIGS_MINUS_ONE,
+  "parallel_samplers": NCONFIGS,
+  "bootstrap_set": NCONFIGS,
+  "parsl_configuration": "frontier_FOM.config_FOM",
+  "parsl_debug_configuration": "frontier_FOM.config_debug",
+  "gpus_per_node": 8,
+  "QM_scratch_dir": "QM",
+  "plotting_utility": "alframework.tools.plotting.analysis_plot",
+  "plot_dir": "status_plots/"
+}
