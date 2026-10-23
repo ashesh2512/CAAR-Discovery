@@ -6,9 +6,12 @@ set -e
 echo "Loading CAAR environment..."
 source /lustre/orion/world-shared/csc728/messerlyra/scripts/load_caar_env.bash
 
+echo "Creating directory for ALF systems..."
+python generate_element_system_folders.py --max-elements 2 --output-dir bootstrap_max2 --template-dir alf_moltensalt_boilerplate/
+
 echo "Starting parallel execution of ALF systems..."
 
-root_path="/lustre/orion/scratch/messerlyra/csc728/tests/alf_USalt/bootstrap_max2/"
+root_path="$PWD/bootstrap_max2/"
 
 cd "$root_path" || exit 1
 
