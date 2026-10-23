@@ -54,7 +54,7 @@ test runs in its own window, so the tests are submitted in parallel.
 ## Running the Script
 
 ```bash
-./run_fom.sh
+./run_FOM.sh
 ```
 
 The script creates one `tmux` session and keeps it open after all tests finish:
