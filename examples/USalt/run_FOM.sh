@@ -3,8 +3,19 @@
 set -euo pipefail
 
 # FOM node-count tests. Edit this list before running the script.
-NODE_COUNTS=(1) #(1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192 9856)
+NODE_COUNTS=(1 2 4) #(1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192 9856)
 readonly GPUS_PER_NODE=8
+
+# By default, tests run sequentially. Use --parallel to start all tests
+# concurrently in the same tmux window.
+PARALLEL=0
+if [[ $# -gt 1 || ( $# -eq 1 && "$1" != "--parallel" ) ]]; then
+    echo "Usage: $0 [--parallel]" >&2
+    exit 1
+fi
+if [[ $# -eq 1 ]]; then
+    PARALLEL=1
+fi
 
 # Paths and names.
 readonly TEMPLATE_DIR="FOM_template"
@@ -48,21 +59,10 @@ fi
 
 mkdir -p "$OUTPUT_ROOT"
 
-# Start a detached tmux session. Every test runs in its own window.
-if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
-    echo "Error: tmux session already exists: $TMUX_SESSION" >&2
-    echo "Use: tmux attach -t $TMUX_SESSION" >&2
-    exit 1
-fi
-
-tmux new-session -d -s "$TMUX_SESSION" -n "setup"
-tmux send-keys -t "$TMUX_SESSION:setup" "echo 'FOM session started: $TMUX_SESSION'" C-m
-
-first_test=1
+# Prepare one independent directory for every node-count test.
 for nodes in "${NODE_COUNTS[@]}"; do
     if [[ ! "$nodes" =~ ^[1-9][0-9]*$ ]]; then
         echo "Error: invalid node count: $nodes" >&2
-        tmux kill-session -t "$TMUX_SESSION" 2>/dev/null || true
         exit 1
     fi
 
@@ -91,23 +91,28 @@ for nodes in "${NODE_COUNTS[@]}"; do
         -e "s/NCONFIGS/${nconfigs}/g" \
         "$test_dir/$FRONTIER_CONFIG" "$test_dir/$MASTER_CONFIG"
 
-    if (( first_test )); then
-        window="$test_name"
-        tmux rename-window -t "$TMUX_SESSION:setup" "$window"
-        first_test=0
-    else
-        tmux new-window -t "$TMUX_SESSION" -n "$test_name"
-        window="$test_name"
-    fi
-
-    log_file="alf_FOM_${nodes}_nodes.log"
-    log_path="$PWD/$test_dir/$log_file"
-    command="{ source '$ENVIRONMENT_SCRIPT' && export FOM_NODE_COUNT='$nodes' && cd '$PWD/$test_dir' && echo \"Starting FOM test with $nodes node(s) at \$(date -Is)\" && python -u -m alframework --master master_FOM.json; status=\$?; echo \"ALF exit code: \$status\"; } > '$log_path' 2>&1; exec bash --noprofile --norc"
-    tmux send-keys -t "$TMUX_SESSION:$window" "$command" C-m
-
 done
 
-echo "Started ${#NODE_COUNTS[@]} FOM tests in tmux session: $TMUX_SESSION"
+# Start one detached tmux session. All tests use this one window.
+if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+    echo "Error: tmux session already exists: $TMUX_SESSION" >&2
+    echo "Use: tmux attach -t $TMUX_SESSION" >&2
+    exit 1
+fi
+
+tmux new-session -d -s "$TMUX_SESSION" -n "FOM_tests"
+
+node_counts_string="${NODE_COUNTS[*]}"
+if (( PARALLEL )); then
+    command="set +e; failure=0; pids=(); for nodes in $node_counts_string; do test_dir=\"$PWD/$OUTPUT_ROOT/nodes_\${nodes}\"; log_path=\"\${test_dir}/alf_FOM_\${nodes}_nodes.log\"; { source '$ENVIRONMENT_SCRIPT' && export FOM_NODE_COUNT=\"\${nodes}\" && cd \"\${test_dir}\" && echo \"Starting FOM test with \${nodes} node(s) at \$(date -Is)\" && python -u -m alframework --master master_FOM.json; status=\$?; echo \"ALF exit code: \${status}\"; exit \"\${status}\"; } > \"\${log_path}\" 2>&1 & pids+=(\$!); done; for pid in \"\${pids[@]}\"; do wait \"\${pid}\"; status=\$?; if (( status != 0 && failure == 0 )); then failure=\$status; fi; done; exec bash --noprofile --norc"
+    run_mode="parallel"
+else
+    command="set +e; failure=0; for nodes in $node_counts_string; do test_dir=\"$PWD/$OUTPUT_ROOT/nodes_\${nodes}\"; log_path=\"\${test_dir}/alf_FOM_\${nodes}_nodes.log\"; { source '$ENVIRONMENT_SCRIPT' && export FOM_NODE_COUNT=\"\${nodes}\" && cd \"\${test_dir}\" && echo \"Starting FOM test with \${nodes} node(s) at \$(date -Is)\" && python -u -m alframework --master master_FOM.json; status=\$?; echo \"ALF exit code: \${status}\"; if (( status != 0 )); then failure=\$status; fi; } > \"\${log_path}\" 2>&1; if (( failure != 0 )); then break; fi; done; exec bash --noprofile --norc"
+    run_mode="sequential"
+fi
+tmux send-keys -t "$TMUX_SESSION:FOM_tests" "$command" C-m
+
+echo "Started ${#NODE_COUNTS[@]} $run_mode FOM tests in tmux session: $TMUX_SESSION"
 echo "Attach with: tmux attach -t $TMUX_SESSION"
 echo "List windows with: tmux list-windows -t $TMUX_SESSION"
 echo "Logs are stored inside each test directory under: $OUTPUT_ROOT"
