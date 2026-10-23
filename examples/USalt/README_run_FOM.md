@@ -9,7 +9,7 @@ starts all tests concurrently in the same `tmux` window.
 Edit the node-count list near the beginning of the script:
 
 ```bash
-NODE_COUNTS=(1 2 4)
+NODE_COUNTS=(1 2 4 8)
 # Example full list:
 # NODE_COUNTS=(1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192 9856)
 ```
