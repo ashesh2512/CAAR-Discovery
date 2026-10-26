@@ -27,7 +27,7 @@ a working environment setup on Frontier.
 ## Tests
 
 The tests/ directory records simple tests of the helper
-functions in `demo/tools.py`.
+functions in `demos/demo_wo_parsl/tools.py`.
 
 ## Run Example
 
