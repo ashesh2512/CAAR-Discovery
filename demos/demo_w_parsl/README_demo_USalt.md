@@ -1,6 +1,6 @@
 # Testing the USalt Demo
 
-The example is in the [`examples/USalt`](https://github.com/messerlyra/CAAR-Discovery/tree/USalt_prep/examples/USalt) directory of the `USalt_prep` branch.
+The demo is in the [`demos/demo_w_parsl`](https://github.com/messerlyra/CAAR-Discovery/tree/USalt_prep/demos/demo_w_parsl) directory of the `USalt_prep` branch.
 
 ## Setup
 
@@ -19,7 +19,7 @@ source /lustre/orion/world-shared/csc728/messerlyra/scripts/load_caar_env.bash
 Change to the demo system directory:
 
 ```bash
-cd CAAR-Discovery/examples/USalt/demo_USalt/system_000001_n14_c-Li-Na-K-Rb-Cs-Be-Mg-Ca-Sr-Ba-Zn-Zr_a-F-Cl
+cd CAAR-Discovery/demos/demo_w_parsl/system_000001_n14_c-Li-Na-K-Rb-Cs-Be-Mg-Ca-Sr-Ba-Zn-Zr_a-F-Cl
 ```
 
 ## Run debug tests - single task on single node on single GPU with debug QOS
