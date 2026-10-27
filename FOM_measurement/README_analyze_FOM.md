@@ -39,17 +39,19 @@ python analyze_FOM.py \
 
 **ML Training:** Reads `training_log.txt` from each model in the latest `ensembles/ensemble-*` directory. Uses the last recorded epoch time, averaged across models, to estimate the additional training time required to reach the target number of epochs.
 
+
 ## Figure of Merit
 
-\[
-\mathrm{FOM}=\frac{N_{\mathrm{QM}}\times N_{\mathrm{atoms}}\times3}{t_{\mathrm{MD}}+t_{\mathrm{QM}}+t_{\mathrm{ML}}}\times3600
-\]
+$$
+\mathrm{FOM} = \frac{N_{\mathrm{QM}} \times N_{\mathrm{atoms}} \times 3}
+{t_{\mathrm{MD}} + t_{\mathrm{QM}} + t_{\mathrm{ML}}} \times 3600
+$$
 
 Where:
 
-- \(N_{\mathrm{QM}}\) = completed QM calculations per batch × number of QM batches.
-- \(N_{\mathrm{atoms}}\) = number of atoms per configuration, obtained from the sampling pickle files.
-- \(t_{\mathrm{MD}},t_{\mathrm{QM}},t_{\mathrm{ML}}\) = extrapolated execution times in seconds.
+- $N_{\mathrm{QM}}$ = completed QM calculations per batch × number of QM batches.
+- $N_{\mathrm{atoms}}$ = number of atoms per configuration, obtained from the sampling pickle files.
+- $t_{\mathrm{MD}}, t_{\mathrm{QM}}, t_{\mathrm{ML}}$ = extrapolated execution times in seconds.
 
 **Output unit:** Force components learned per hour.
 
