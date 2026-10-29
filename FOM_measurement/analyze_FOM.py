@@ -127,8 +127,8 @@ def analyze_ml_epochs(ensembles_dir):
 def main():
     parser = argparse.ArgumentParser(description='Analyze ALF workflow execution times.')
     parser.add_argument('--alf_path', type=Path, default=Path.cwd(), help='ALF root directory (default: current working directory / PWD)')
-    parser.add_argument('--timestep', type=float, default=0.1, help='MD timestep in fs (default: 0.1)')
-    parser.add_argument('--md-duration', type=float, default=1000.0, help='Target MD duration in ps (default: 1000.0)')
+    parser.add_argument('--timestep', type=float, default=0.25, help='MD timestep in fs (default: 0.25)')
+    parser.add_argument('--md-duration', type=float, default=100.0, help='Target MD duration in ps (default: 100.0)')
     parser.add_argument('--epochs', type=int, default=500, help='Target ML epochs (default: 500)')
     args = parser.parse_args()
     if args.epochs <= 0:
@@ -144,13 +144,15 @@ def main():
         if not directory.is_dir():
             parser.error(f'Directory not found: {directory}')
 
-    t_md = get_timestamp(scripts_dir, 'cmd_MD*.sh')
-    t_qm = get_timestamp(scripts_dir, 'cmd_QM*.sh')
-    t_ml = get_timestamp(scripts_dir, 'cmd_ML*.sh')
-    t_end = get_timestamp(scripts_dir, 'parsl.alf_ML_executor.block-0.*.stderr')
-    md_time_original = t_qm - t_md
-    qm_time_original = t_ml - t_qm
-    ml_time_original = t_end - t_ml
+    t_md_start = get_timestamp(scripts_dir, 'cmd_MD*.sh')
+    t_md_end = get_timestamp(scripts_dir, 'parsl.alf_sampler_executor.block-0.*.stderr')
+    t_qm_start = get_timestamp(scripts_dir, 'cmd_QM*.sh')
+    t_qm_end = get_timestamp(scripts_dir, 'parsl.alf_QM_executor.block-0.*.stderr')
+    t_ml_start = get_timestamp(scripts_dir, 'cmd_ML*.sh')
+    t_ml_end = get_timestamp(scripts_dir, 'parsl.alf_ML_executor.block-0.*.stderr')
+    md_time_original = t_md_end - t_md_start
+    qm_time_original = t_qm_end - t_qm_start
+    ml_time_original = t_ml_end - t_ml_start
     if min(md_time_original, qm_time_original, ml_time_original) < 0:
         raise ValueError('Invalid timestamp order. Check the selected files.')
 
@@ -172,6 +174,13 @@ def main():
 
     num_atoms = get_num_atoms(sampling_dir)
     qm_calcs = completed_qm * qm_batches
+    if qm_calcs > num_trajectories:
+        print(
+        f"WARNING: Extrapolated QM calculations ({qm_calcs}) "
+        f"exceed MD trajectories ({num_trajectories}). "
+        f"Limiting QM calculations to {num_trajectories}."
+        )
+        qm_calcs = num_trajectories
     force_components = qm_calcs * num_atoms * 3
     total_hours = total_time / 3600.0
     fom = force_components / total_hours
@@ -180,7 +189,7 @@ def main():
     print('=' * 50)
     print(f'\nALF directory: {args.alf_path.resolve()}')
     print('\nTimestamps:')
-    for label, timestamp in [('MD start', t_md), ('QM start', t_qm), ('ML start', t_ml), ('ML end', t_end)]:
+    for label, timestamp in [('MD start', t_md_start), ('MD end', t_md_end), ('QM start', t_qm_start), ('QM end', t_qm_end), ('ML start', t_ml_start), ('ML end', t_ml_end)]:
         date = datetime.fromtimestamp(timestamp)
         print(f'  {label:<12}: {date:%Y-%m-%d %H:%M:%S}')
 
