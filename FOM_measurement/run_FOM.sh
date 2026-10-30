@@ -22,10 +22,10 @@ if [[ $# -eq 1 ]]; then
 fi
 
 # Paths and names.
-readonly TEMPLATE_DIR="FOM_template_h5precomputed"
-readonly OUTPUT_ROOT="FOM_runs_h5precomputed"
+readonly TEMPLATE_DIR="FOM_template"
+readonly OUTPUT_ROOT="FOM_runs"
 readonly ENVIRONMENT_SCRIPT="/lustre/orion/world-shared/csc728/messerlyra/scripts/load_caar_env.bash"
-readonly TMUX_SESSION="alf_FOM_h5precomputed"
+readonly TMUX_SESSION="alf_FOM"
 readonly MASTER_TEMPLATE="master_template.json"
 readonly MASTER_CONFIG="master_FOM.json"
 readonly FRONTIER_TEMPLATE="frontier_template.py"
@@ -149,7 +149,7 @@ if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
     exit 1
 fi
 
-tmux new-session -d -s "$TMUX_SESSION" -n "fom_tests"
+tmux new-session -d -s "$TMUX_SESSION" -n "FOM_tests"
 
 node_counts_string="${NODE_COUNTS[*]}"
 nnodes_qm_per_md=$((NCONFIGS_QM > 0 ? NCONFIGS_QM / GPUS_PER_NODE : 1))
@@ -157,11 +157,10 @@ if (( PARALLEL )); then
     command="set +e; failure=0; pids=(); for nodes in $node_counts_string; do if (( $NCONFIGS_QM == -1 || $NCONFIGS_QM > nodes * $GPUS_PER_NODE )); then nnodes_qm=\${nodes}; else nnodes_qm=$nnodes_qm_per_md; fi; test_name=\"nodes_\${nodes}MD_\${nnodes_qm}QM_1ML\"; test_dir=\"$PWD/$OUTPUT_ROOT/\${test_name}\"; log_path=\"\${test_dir}/alf_FOM_\${test_name}.log\"; { source '$ENVIRONMENT_SCRIPT' && export FOM_NODE_COUNT=\"\${nodes}\" && cd \"\${test_dir}\" && echo \"Starting FOM test with \${nodes} MD node(s), \${nnodes_qm} QM node(s), and 1 ML node at \$(date -Is)\" && python -u -m alframework --master master_FOM.json; status=\$?; echo \"ALF exit code: \${status}\"; exit \"\${status}\"; } > \"\${log_path}\" 2>&1 & pids+=(\$!); done; for pid in \"\${pids[@]}\"; do wait \"\${pid}\"; status=\$?; if (( status != 0 && failure == 0 )); then failure=\$status; fi; done; exec bash --noprofile --norc"
     run_mode="parallel"
 else
-    #command="set +e; failure=0; for nodes in $node_counts_string; do if (( $NCONFIGS_QM == -1 || $NCONFIGS_QM > nodes * $GPUS_PER_NODE )); then nnodes_qm=\${nodes}; else nnodes_qm=$nnodes_qm_per_md; fi; test_name=\"nodes_\${nodes}MD_\${nnodes_qm}QM_1ML\"; test_dir=\"$PWD/$OUTPUT_ROOT/\${test_name}\"; log_path=\"\${test_dir}/alf_FOM_\${test_name}.log\"; { source '$ENVIRONMENT_SCRIPT' && export FOM_NODE_COUNT=\"\${nodes}\" && cd \"\${test_dir}\" && echo \"Starting FOM test with \${nodes} MD node(s), \${nnodes_qm} QM node(s), and 1 ML node at \$(date -Is)\" && python -u -m alframework --master master_FOM.json; status=\$?; echo \"ALF exit code: \${status}\"; if (( status != 0 )); then failure=\$status; fi; } > \"\${log_path}\" 2>&1; if (( failure != 0 )); then break; fi; done; exec bash --noprofile --norc"
     command="set +e; failure=0; for nodes in $node_counts_string; do if (( $NCONFIGS_QM == -1 || $NCONFIGS_QM > nodes * $GPUS_PER_NODE )); then nnodes_qm=\${nodes}; else nnodes_qm=$nnodes_qm_per_md; fi; test_name=\"nodes_\${nodes}MD_\${nnodes_qm}QM_1ML\"; test_dir=\"$PWD/$OUTPUT_ROOT/\${test_name}\"; log_path=\"\${test_dir}/alf_FOM_\${test_name}.log\"; { source '$ENVIRONMENT_SCRIPT' && export FOM_NODE_COUNT=\"\${nodes}\" && cd \"\${test_dir}\" && echo \"Starting FOM test with \${nodes} MD node(s), \${nnodes_qm} QM node(s), and 1 ML node at \$(date -Is)\" && python -u -m alframework --master master_FOM.json; status=\$?; echo \"ALF exit code: \${status}\"; job_name=\"ML_\${nodes}nodes\"; mapfile -t job_ids < <(squeue -h -u messerlyra -n \"\${job_name}\" -o \"%A\"); if (( \${#job_ids[@]} > 0 )); then scancel \"\${job_ids[@]}\"; fi; sleep 2; if (( status != 0 )); then failure=\$status; fi; } > \"\${log_path}\" 2>&1; if (( failure != 0 )); then break; fi; done; exec bash --noprofile --norc"
     run_mode="sequential"
 fi
-tmux send-keys -t "$TMUX_SESSION:fom_tests" "$command" C-m
+tmux send-keys -t "$TMUX_SESSION:FOM_tests" "$command" C-m
 
 echo "Started ${#NODE_COUNTS[@]} $run_mode FOM tests in tmux session: $TMUX_SESSION"
 echo "Attach with: tmux attach -t $TMUX_SESSION"
