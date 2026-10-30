@@ -1,4 +1,4 @@
-# `run_FOM.sh` — Automatic MD/QM/ML Node Limits
+# `run_FOM.sh`
 
 `run_FOM.sh` runs ALF FOM tests using different numbers of MD compute nodes and automatically determines the QM and ML node allocations. It prepares precomputed QM HDF5 copies when additional QM batches are required. By default, tests run sequentially. The optional `--parallel` argument starts all tests concurrently in the same `tmux` window.
 

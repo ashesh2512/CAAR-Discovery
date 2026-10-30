@@ -4,7 +4,7 @@ set -euo pipefail
 # MD node counts and per-stage node limits (-1 means no additional limit).
 NODE_COUNTS=(1 2 4 8)
 NODE_MAX_MD=-1
-NODE_MAX_QM=-1
+NODE_MAX_QM=64
 NODE_MAX_ML=1
 readonly GPUS_PER_NODE=8
 
