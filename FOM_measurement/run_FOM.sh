@@ -1,27 +1,20 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
-# FOM node-count tests. These are MD node counts. Edit this list before running
-# the script.
+# MD node counts and per-stage node limits (-1 means no additional limit).
 NODE_COUNTS=(1 2 4 8)
+NODE_MAX_MD=-1
+NODE_MAX_QM=-1
+NODE_MAX_ML=1
 readonly GPUS_PER_NODE=8
-# Number of configurations represented by the precomputed QM HDF5 file.
-# This value must divide NCONFIGS_MD for every node count in NODE_COUNTS.
-NCONFIGS_QM=512
 
-# By default, tests run sequentially. Use --parallel to start all tests
-# concurrently in the same tmux window.
 PARALLEL=0
 if [[ $# -gt 1 || ( $# -eq 1 && "$1" != "--parallel" ) ]]; then
     echo "Usage: $0 [--parallel]" >&2
     exit 1
 fi
-if [[ $# -eq 1 ]]; then
-    PARALLEL=1
-fi
+if [[ $# -eq 1 ]]; then PARALLEL=1; fi
 
-# Paths and names.
 readonly TEMPLATE_DIR="FOM_template"
 readonly OUTPUT_ROOT="FOM_runs"
 readonly ENVIRONMENT_SCRIPT="/lustre/orion/world-shared/csc728/messerlyra/scripts/load_caar_env.bash"
@@ -32,44 +25,40 @@ readonly FRONTIER_TEMPLATE="frontier_template.py"
 readonly FRONTIER_CONFIG="frontier_FOM.py"
 readonly H5_PRECOMPUTED_DIR="h5store_precomputed"
 
-if [[ ! -d "$TEMPLATE_DIR" ]]; then
-    echo "Error: template directory not found: $TEMPLATE_DIR" >&2
-    exit 1
-fi
-
-if [[ ! -f "$ENVIRONMENT_SCRIPT" ]]; then
-    echo "Error: environment script not found: $ENVIRONMENT_SCRIPT" >&2
-    exit 1
-fi
-
-if [[ ! -f "$TEMPLATE_DIR/$MASTER_TEMPLATE" ]]; then
-    echo "Error: $MASTER_TEMPLATE not found in $TEMPLATE_DIR" >&2
-    exit 1
-fi
-
-if [[ ! -f "$TEMPLATE_DIR/$FRONTIER_TEMPLATE" ]]; then
-    echo "Error: $FRONTIER_TEMPLATE not found in $TEMPLATE_DIR" >&2
-    exit 1
-fi
-
-if (( NCONFIGS_QM == 0 || NCONFIGS_QM < -1 )); then
-    echo "Error: NCONFIGS_QM must be positive or -1 (use NCONFIGS_MD)." >&2
-    exit 1
-fi
-
+for path in "$TEMPLATE_DIR/$MASTER_TEMPLATE" "$TEMPLATE_DIR/$FRONTIER_TEMPLATE" "$ENVIRONMENT_SCRIPT"; do
+    if [[ ! -f "$path" ]]; then
+        echo "Error: required file not found: $path" >&2
+        exit 1
+    fi
+done
 if ! command -v tmux >/dev/null 2>&1; then
     echo "Error: tmux is not available." >&2
     exit 1
 fi
-
 if [[ ${#NODE_COUNTS[@]} -eq 0 ]]; then
     echo "Error: NODE_COUNTS is empty." >&2
     exit 1
 fi
+for limit in "$NODE_MAX_MD" "$NODE_MAX_QM" "$NODE_MAX_ML"; do
+    if [[ ! "$limit" =~ ^-?[0-9]+$ ]] || (( limit == 0 || limit < -1 )); then
+        echo "Error: node limits must be positive integers or -1." >&2
+        exit 1
+    fi
+done
+if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+    echo "Error: tmux session already exists: $TMUX_SESSION" >&2
+    exit 1
+fi
 
+# Resolve paths before entering any ALF test directory.
+readonly BASE_DIR="$PWD"
 mkdir -p "$OUTPUT_ROOT"
+readonly OUTPUT_ABS="$BASE_DIR/$OUTPUT_ROOT"
+readonly MANIFEST="$OUTPUT_ABS/FOM_manifest.tsv"
+readonly RUNNER="$OUTPUT_ABS/run_FOM_worker.sh"
+: > "$MANIFEST"
 
-# Prepare one independent directory for every node-count test.
+# Prepare configurations and precomputed HDF5 copies for every test.
 for nodes in "${NODE_COUNTS[@]}"; do
     if [[ ! "$nodes" =~ ^[1-9][0-9]*$ ]]; then
         echo "Error: invalid node count: $nodes" >&2
@@ -77,93 +66,121 @@ for nodes in "${NODE_COUNTS[@]}"; do
     fi
 
     nnodes_md=$nodes
-    nnodes_ml=1
+    if (( NODE_MAX_MD > 0 && nnodes_md > NODE_MAX_MD )); then
+        nnodes_md=$NODE_MAX_MD
+    fi
+    nnodes_qm=$nnodes_md
+    if (( NODE_MAX_QM > 0 && nnodes_qm > NODE_MAX_QM )); then
+        nnodes_qm=$NODE_MAX_QM
+    fi
+    nnodes_ml=$nnodes_md
+    if (( NODE_MAX_ML > 0 && nnodes_ml > NODE_MAX_ML )); then
+        nnodes_ml=$NODE_MAX_ML
+    fi
+
     nconfigs_md=$((nnodes_md * GPUS_PER_NODE))
-    if (( NCONFIGS_QM == -1 || NCONFIGS_QM > nconfigs_md )); then
-        nconfigs_qm=$nconfigs_md
-    else
-        nconfigs_qm=$NCONFIGS_QM
-    fi
-
+    nconfigs_qm=$((nnodes_qm * GPUS_PER_NODE))
     if (( nconfigs_md % nconfigs_qm != 0 )); then
-        echo "Error: NCONFIGS_MD ($nconfigs_md) is not divisible by NCONFIGS_QM ($nconfigs_qm) for $nnodes_md MD node(s)." >&2
+        echo "Error: MD configurations ($nconfigs_md) must be divisible by QM configurations ($nconfigs_qm)." >&2
         exit 1
     fi
-    if (( (nconfigs_qm * nnodes_md) % nconfigs_md != 0 )); then
-        echo "Error: NNODES_QM is not an integer for $nnodes_md MD node(s); choose an NCONFIGS_QM compatible with GPUS_PER_NODE ($GPUS_PER_NODE)." >&2
-        exit 1
-    fi
-
-    nconfigs_qm_minus_one=$((nconfigs_qm - 1))
-    nconfigs_qm_plus_one=$((nconfigs_qm + 1))
-    # ALF creates one new HDF5 file itself, so only the remaining files are
-    # copied from the precomputed dataset.
-    h5_copies=$((nconfigs_md / nconfigs_qm - 1))
+    qm_batches=$((nconfigs_md / nconfigs_qm))
+    h5_copies=$((qm_batches - 1))
     h5_precomputed_file="data-${nconfigs_qm}configs.h5"
     if (( h5_copies > 0 )) && [[ ! -f "$H5_PRECOMPUTED_DIR/$h5_precomputed_file" ]]; then
-        echo "Error: precomputed HDF5 file not found: $H5_PRECOMPUTED_DIR/$h5_precomputed_file" >&2
+        echo "Error: missing precomputed HDF5 file: $H5_PRECOMPUTED_DIR/$h5_precomputed_file" >&2
         exit 1
     fi
-    nnodes_qm=$((nnodes_md * nconfigs_qm / nconfigs_md))
-    nconfigs_md_minus_one=$((nconfigs_md - 1))
-    nconfigs_md_plus_one=$((nconfigs_md + 1))
+
     test_name="nodes_${nnodes_md}MD_${nnodes_qm}QM_${nnodes_ml}ML"
-    test_dir="$OUTPUT_ROOT/$test_name"
+    test_dir="$OUTPUT_ABS/$test_name"
     mkdir -p "$test_dir"
-
-    # Copy the complete template, including hidden files.
     cp -a "$TEMPLATE_DIR/." "$test_dir/"
-
-    # Keep a separate FOM master-config name in every test directory.
     mv -f "$test_dir/$MASTER_TEMPLATE" "$test_dir/$MASTER_CONFIG"
     mv -f "$test_dir/$FRONTIER_TEMPLATE" "$test_dir/$FRONTIER_CONFIG"
 
-    # Replace resource-dependent placeholders in the copied configuration files.
-    # The placeholders are deliberately plain text so that the resulting JSON
-    # contains integer values rather than quoted strings.
     sed -i \
         -e "s/NNODES_QM/${nnodes_qm}/g" \
         -e "s/NNODES_MD/${nnodes_md}/g" \
         -e "s/NNODES_ML/${nnodes_ml}/g" \
         -e "s/NNODES/${nnodes_md}/g" \
-        -e "s/NCONFIGS_QM_MINUS_ONE/${nconfigs_qm_minus_one}/g" \
-        -e "s/NCONFIGS_QM_PLUS_ONE/${nconfigs_qm_plus_one}/g" \
+        -e "s/NCONFIGS_QM_MINUS_ONE/$((nconfigs_qm - 1))/g" \
+        -e "s/NCONFIGS_QM_PLUS_ONE/$((nconfigs_qm + 1))/g" \
         -e "s/NCONFIGS_QM/${nconfigs_qm}/g" \
-        -e "s/NCONFIGS_MD_MINUS_ONE/${nconfigs_md_minus_one}/g" \
-        -e "s/NCONFIGS_MD_PLUS_ONE/${nconfigs_md_plus_one}/g" \
+        -e "s/NCONFIGS_MD_MINUS_ONE/$((nconfigs_md - 1))/g" \
+        -e "s/NCONFIGS_MD_PLUS_ONE/$((nconfigs_md + 1))/g" \
         -e "s/NCONFIGS_MD/${nconfigs_md}/g" \
         "$test_dir/$FRONTIER_CONFIG" "$test_dir/$MASTER_CONFIG"
 
     mkdir -p "$test_dir/h5store"
     for ((h5_index = 0; h5_index < h5_copies; h5_index++)); do
-        h5_name=$(printf 'data-%sconfigs-copy-%04d.h5' "$nconfigs_qm" "$h5_index")
+        printf -v h5_name 'data-%sconfigs-copy-%04d.h5' "$nconfigs_qm" "$h5_index"
         cp "$H5_PRECOMPUTED_DIR/$h5_precomputed_file" "$test_dir/h5store/$h5_name"
     done
 
+    printf '%s\t%s\t%s\t%s\n' "$test_name" "$nnodes_md" "$nnodes_qm" "$nnodes_ml" >> "$MANIFEST"
+    echo "Prepared $test_name: MD=$nconfigs_md, QM/batch=$nconfigs_qm, QM batches=$qm_batches, HDF5 copies=$h5_copies"
 done
 
-# Start one detached tmux session. All tests use this one window.
-if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
-    echo "Error: tmux session already exists: $TMUX_SESSION" >&2
-    echo "Use: tmux attach -t $TMUX_SESSION" >&2
-    exit 1
-fi
+# Keep the tmux command short and reuse the prepared resource manifest.
+cat > "$RUNNER" <<'WORKER'
+#!/usr/bin/env bash
+set -uo pipefail
+manifest=$1
+output_root=$2
+environment_script=$3
+parallel=$4
 
-tmux new-session -d -s "$TMUX_SESSION" -n "FOM_tests"
+run_one() {
+    local test_name=$1 nnodes_md=$2 nnodes_qm=$3 nnodes_ml=$4
+    local test_dir="$output_root/$test_name"
+    local log_path="$test_dir/alf_FOM_${test_name}.log"
+    (
+        cd "$test_dir" || exit 1
+        source "$environment_script" || exit 1
+        export FOM_NODE_COUNT="$nnodes_md"
+        echo "Starting FOM test: $nnodes_md MD node(s), $nnodes_qm QM node(s), $nnodes_ml ML node(s) at $(date -Is)"
+        python -u -m alframework --master master_FOM.json
+        status=$?
+        echo "ALF exit code: $status"
+        exit "$status"
+    ) > "$log_path" 2>&1
+    return $?
+}
 
-node_counts_string="${NODE_COUNTS[*]}"
-nnodes_qm_per_md=$((NCONFIGS_QM > 0 ? NCONFIGS_QM / GPUS_PER_NODE : 1))
-if (( PARALLEL )); then
-    command="set +e; failure=0; pids=(); for nodes in $node_counts_string; do if (( $NCONFIGS_QM == -1 || $NCONFIGS_QM > nodes * $GPUS_PER_NODE )); then nnodes_qm=\${nodes}; else nnodes_qm=$nnodes_qm_per_md; fi; test_name=\"nodes_\${nodes}MD_\${nnodes_qm}QM_1ML\"; test_dir=\"$PWD/$OUTPUT_ROOT/\${test_name}\"; log_path=\"\${test_dir}/alf_FOM_\${test_name}.log\"; { source '$ENVIRONMENT_SCRIPT' && export FOM_NODE_COUNT=\"\${nodes}\" && cd \"\${test_dir}\" && echo \"Starting FOM test with \${nodes} MD node(s), \${nnodes_qm} QM node(s), and 1 ML node at \$(date -Is)\" && python -u -m alframework --master master_FOM.json; status=\$?; echo \"ALF exit code: \${status}\"; exit \"\${status}\"; } > \"\${log_path}\" 2>&1 & pids+=(\$!); done; for pid in \"\${pids[@]}\"; do wait \"\${pid}\"; status=\$?; if (( status != 0 && failure == 0 )); then failure=\$status; fi; done; exec bash --noprofile --norc"
-    run_mode="parallel"
+failure=0
+if (( parallel )); then
+    pids=()
+    while IFS=$'\t' read -r test_name nnodes_md nnodes_qm nnodes_ml; do
+        run_one "$test_name" "$nnodes_md" "$nnodes_qm" "$nnodes_ml" &
+        pids+=("$!")
+    done < "$manifest"
+    for pid in "${pids[@]}"; do
+        wait "$pid" || failure=1
+    done
 else
-    command="set +e; failure=0; for nodes in $node_counts_string; do if (( $NCONFIGS_QM == -1 || $NCONFIGS_QM > nodes * $GPUS_PER_NODE )); then nnodes_qm=\${nodes}; else nnodes_qm=$nnodes_qm_per_md; fi; test_name=\"nodes_\${nodes}MD_\${nnodes_qm}QM_1ML\"; test_dir=\"$PWD/$OUTPUT_ROOT/\${test_name}\"; log_path=\"\${test_dir}/alf_FOM_\${test_name}.log\"; { source '$ENVIRONMENT_SCRIPT' && export FOM_NODE_COUNT=\"\${nodes}\" && cd \"\${test_dir}\" && echo \"Starting FOM test with \${nodes} MD node(s), \${nnodes_qm} QM node(s), and 1 ML node at \$(date -Is)\" && python -u -m alframework --master master_FOM.json; status=\$?; echo \"ALF exit code: \${status}\"; job_name=\"ML_\${nodes}nodes\"; mapfile -t job_ids < <(squeue -h -u messerlyra -n \"\${job_name}\" -o \"%A\"); if (( \${#job_ids[@]} > 0 )); then scancel \"\${job_ids[@]}\"; fi; sleep 2; if (( status != 0 )); then failure=\$status; fi; } > \"\${log_path}\" 2>&1; if (( failure != 0 )); then break; fi; done; exec bash --noprofile --norc"
-    run_mode="sequential"
+    while IFS=$'\t' read -r test_name nnodes_md nnodes_qm nnodes_ml; do
+        run_one "$test_name" "$nnodes_md" "$nnodes_qm" "$nnodes_ml" || failure=1
+        # Preserve cleanup of leftover ML Slurm jobs after sequential tests.
+        job_name="ML_${nnodes_md}nodes"
+        mapfile -t job_ids < <(squeue -h -u messerlyra -n "$job_name" -o '%A')
+        if (( ${#job_ids[@]} > 0 )); then
+            scancel "${job_ids[@]}"
+        fi
+        sleep 2
+        if (( failure != 0 )); then break; fi
+    done < "$manifest"
 fi
-tmux send-keys -t "$TMUX_SESSION:FOM_tests" "$command" C-m
+printf 'FOM tests finished with status %s\n' "$failure"
+exec bash --noprofile --norc
+WORKER
+chmod +x "$RUNNER"
 
+printf -v tmux_command '%q ' "$RUNNER" "$MANIFEST" "$OUTPUT_ABS" "$ENVIRONMENT_SCRIPT" "$PARALLEL"
+tmux new-session -d -s "$TMUX_SESSION" -n "FOM_tests"
+tmux send-keys -t "$TMUX_SESSION:FOM_tests" "$tmux_command" C-m
+if (( PARALLEL )); then run_mode=parallel; else run_mode=sequential; fi
 echo "Started ${#NODE_COUNTS[@]} $run_mode FOM tests in tmux session: $TMUX_SESSION"
 echo "Attach with: tmux attach -t $TMUX_SESSION"
-echo "List windows with: tmux list-windows -t $TMUX_SESSION"
 echo "Logs are stored inside each test directory under: $OUTPUT_ROOT"
 
