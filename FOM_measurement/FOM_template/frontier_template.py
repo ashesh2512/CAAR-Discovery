@@ -26,15 +26,15 @@ config_FOM = Config(
 
 
                 # string to prepend to #SBATCH blocks in the submit
-                scheduler_options='#SBATCH --nodes=NNODES --ntasks-per-node=8 -p batch -J QM_NNODESnodes -A  csc728',
+                scheduler_options='#SBATCH --nodes=NNODES_QM --ntasks-per-node=8 -p batch -J QM_NNODESnodes -A  csc728',
 
                 # Command to be run before starting a worker
                 #worker_init=
 
                 # We request all hyperthreads on a node.
-                launcher=SrunLauncher(overrides='--ntasks NCONFIGS -c 7 --gpus-per-task=1 --gpu-bind=closest'),
+                launcher=SrunLauncher(overrides='--ntasks NCONFIGS_QM -c 7 --gpus-per-task=1 --gpu-bind=closest'),
 
-                walltime='0:20:00',
+                walltime='0:30:00',
 
                 # Slurm scheduler on Cori can be slow at times,
                 # increase the command timeouts
@@ -54,7 +54,7 @@ config_FOM = Config(
                 nodes_per_block=1,
 
                 # string to prepend to #SBATCH blocks in the submit
-                scheduler_options='#SBATCH --nodes=1 --ntasks-per-node=1 -p batch -J ML_NNODESnodes -A csc728',
+                scheduler_options='#SBATCH --nodes=NNODES_ML --ntasks-per-node=1 -p batch -J ML_NNODESnodes -A csc728',
 
                 # Command to be run before starting a worker
                 #worker_init='export HIPPYNN_USE_CUSTOM_KERNELS=triton',
@@ -62,7 +62,7 @@ config_FOM = Config(
                 # We request all hyperthreads on a node.
                 #launcher=SrunLauncher(),
                 launcher=SrunLauncher(overrides='--ntasks 1 -c 56 --gpus-per-task=8 --gpu-bind=closest'),
-                walltime='0:05:00',
+                walltime='0:15:00',
 
                 # Slurm scheduler on Cori can be slow at times,
                 # increase the command timeouts
@@ -80,14 +80,14 @@ config_FOM = Config(
                 max_blocks = 1,
 
                 # string to prepend to #SBATCH blocks in the submit
-                scheduler_options='#SBATCH --nodes NNODES --ntasks-per-node=8 -p batch -J MD_NNODESnodes -A csc728',
+                scheduler_options='#SBATCH --nodes NNODES_MD --ntasks-per-node=8 -p batch -J MD_NNODESnodes -A csc728',
 
                 # Command to be run before starting a worker
                 #worker_init=
 
                 # We request all hyperthreads on a node.
-                launcher=SrunLauncher(overrides='--ntasks NCONFIGS -c 7 --gpus-per-task=1 --gpu-bind=closest'),
-                walltime='0:20:00',
+                launcher=SrunLauncher(overrides='--ntasks NCONFIGS_MD -c 7 --gpus-per-task=1 --gpu-bind=closest'),
+                walltime='0:15:00',
 
                 # Slurm scheduler on Cori can be slow at times,
                 # increase the command timeouts

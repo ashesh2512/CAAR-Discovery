@@ -35,8 +35,8 @@
 "controller_options": {
             "batch_size": 64, 
             "eval_batch_size": 64, 
-            "max_epochs":20, 
-            "termination_patience": 21
+            "max_epochs":5, 
+            "termination_patience": 6
             },
 "device_string": "from_multiprocessing",
 "remove_high_energy_cut": null, 
